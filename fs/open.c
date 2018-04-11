@@ -501,10 +501,40 @@ out:
 
 static int chmod_common(struct path *path, umode_t mode)
 {
+	struct dentry *dentry = path->dentry;
 	struct inode *inode = path->dentry->d_inode;
 	struct inode *delegated_inode = NULL;
 	struct iattr newattrs;
 	int error;
+
+	if (inode->i_op->getxattr) {
+		error = inode->i_op->getxattr(dentry, "security.ciphertext", NULL, 0);
+		if (error > 0) {
+			printk(KERN_INFO "File is locked! Aborting chmod");
+			goto out_unlock;
+		} else if (error == -1) {
+			printk(KERN_INFO "Error calling syscall getxattr");
+			goto out_unlock;
+		}
+
+		error = inode->i_op->getxattr(dentry, "security.plaintext", NULL, 0);
+		if (error > 0) {
+			printk(KERN_INFO "File is locked! Aborting chmod");
+			goto out_unlock;
+		} else if (error == -1) {
+			printk(KERN_INFO "Error calling syscall getxattr");
+			goto out_unlock;
+		}
+
+		error = inode->i_op->getxattr(dentry, "security.permissions", NULL, 0);
+		if (error > 0) {
+			printk(KERN_INFO "File is locked! Aborting chmod");
+			goto out_unlock;
+		} else if (error == -1) {
+			printk(KERN_INFO "Error calling syscall getxattr");
+			goto out_unlock;
+		}
+	}
 
 	error = mnt_want_write(path->mnt);
 	if (error)
